@@ -3,7 +3,7 @@ import ipywidgets as ipw
 from typing import Any, Dict
 
 import tissue_forge as tf
-from . import widgets as tfnw
+import widgets as tfnw # from . import widgets as tfnw
 
 
 LABELTEXT_BACKGROUND = 'Background:'

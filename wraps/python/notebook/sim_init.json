@@ -1,0 +1,41 @@
+{
+  "dim": [
+    10.0,
+    10.0,
+    10.0
+  ],
+  "cutoff": 1.0,
+  "dt": 0.01,
+  "bc": {
+    "x": {
+      "velocity": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    }, 
+    "left": 2,
+    "right": null, 
+    "y": null, 
+    "bottom": 4, 
+    "top": null, 
+    "z": "periodic", 
+    "front": null, 
+    "back": null
+  }, 
+  "cells": [
+    4,
+    4,
+    4
+  ], 
+  "threads": 0, 
+  "flux_steps": 1, 
+  "integrator": 0, 
+  "window_size": [
+    800,
+    600
+  ], 
+  "seed": 0, 
+  "load_file": "", 
+  "logger_level": 0
+}
