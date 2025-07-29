@@ -150,3 +150,17 @@ Once called, save and screenshot buttons populate, allowing the user to name the
 
     # Create and show a Jupyter widget to screenshot Tissue Forge simulations
     tf.notebook.screenshot_widget()
+
+.. _simulationinitialization:
+
+|
+
+Simulation Initialization
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Tissue Forge supports Jupyter widgets to configure simulation initialization based off the tf.init() function. 
+It provides a collection of sliders, text boxes, and dropdowns to adjust every parameter that the function accepts. 
+
+.. code-block:: python
+
+    # Create and show a Jupyter widget to initialize simulation
+    tf.notebook.init()

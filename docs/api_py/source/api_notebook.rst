@@ -3,6 +3,8 @@ Jupyter Notebook Widgets
 
 .. currentmodule:: tissue_forge.notebook
 
+.. autofunction:: init
+
 .. autofunction:: set_background_picker
 
 .. autofunction:: set_background_text

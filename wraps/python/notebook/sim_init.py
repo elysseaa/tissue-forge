@@ -1,15 +1,11 @@
 from IPython.display import display
 import ipywidgets as ipw
 import tissue_forge as tf
-import numpy as np
 import widgets as tfnw
 import saveandscreenshot as sns
-from ipyfilechooser import FileChooser
-import os
-from typing import Any, Dict, Optional
+from IPython.display import display, HTML
 
-save_folder: Optional[str] = None
-
+# Labels
 LABELTEXT_CUTOFF = "Cutoff: "
 LABELTEXT_BC = "Boundaries: "
 LABELTEXT_DT = "Time Discretization: "
@@ -23,10 +19,11 @@ LABELTEXT_THROW_EXC = "Throw Errors? "
 LABELTEXT_SEED = "Seed: "
 LABELTEXT_LOAD_FILE = "Load File: "
 LABELTEXT_LOGGER_LEVEL = "Logger Level: "
+LABELTEXT_CLIP_PLANES = "Clip Planes: "
 
-out = ipw.Output(layout={"border": "1px solid black"})
-
-
+"""
+Helper functions
+"""
 def _set_text(**kwargs):
     def_kwargs = dict(
         min=1,
@@ -65,46 +62,40 @@ def _set_dropdown(**kwargs):
     )
     return widget
 
+def _set_vector(**kwargs):
+    def_kwargs = dict(
+        label="",
+        numDims=3,
+        initialValue=0,
+        withCheckbox=True,
+        dtype=int,
+        disabled=True
+    )
+    def_kwargs.update(kwargs)
 
-# def _set_vector(
-#     show=False,
-#     label_kwargs: Dict[str, Any] = None,
-#     field_kwargs: Dict[int, Dict[str, Any]] = None,
-# ):
-#     def_label_kwargs = dict(style=dict(description_width="initial"))
-#     if label_kwargs is not None:
-#         def_label_kwargs.update(label_kwargs)
-#     def_field_kwargs = {i: dict(min=0.0, max=100, step=1) for i in range(3)}
-#     if field_kwargs is not None:
-#         for k, v in field_kwargs.items():
-#             def_field_kwargs[k].update(v)
-#     label = ipw.Label(LABELTEXT_DIM, **def_label_kwargs)
-#     box, widgets = tfnw.vector_textb(
-#         ndim=3,
-#         dtype=float,
-#         initial_values=[10, 10, 10],
-#         label=label,
-#         field_kwargs=def_field_kwargs,
-#     )
-#     if show:
-#         display(box)
-#     return box, *widgets
-
-def _set_vector():
     data = []
-    for i in range(3):
+    for i in range(def_kwargs["numDims"]):
         dataBox, dataWidget = _set_text(
             min=0,
             max=100,
-            description= chr(i + 120) + ": ",
-            initial_value=0,
-            dtype=float,
+            description=def_kwargs["label"] + " x: " if i == 0 else chr(i + 120) + ": ",
+            initial_value=def_kwargs["initialValue"],
+            dtype=def_kwargs["dtype"],
+            disabled=def_kwargs["disabled"]
         )
         data.append(dataWidget)
-    dimBox = ipw.HBox(data)
-    return dimBox
+    dataBox = ipw.HBox(data)
+    if (def_kwargs["withCheckbox"]): 
+        dim = ipw.HBox([_checkbox(dataBox), dataBox])
+        return dim
+    return dataBox
 
-def _checkbox(widget):
+def _checkbox(widget, **kwargs):
+    def_kwargs = dict(
+        description=""
+    )
+    def_kwargs.update(kwargs)
+
     def set_default(change):
         def set_widget_state(widget, disabled_state):
             if hasattr(widget, 'disabled'):
@@ -113,42 +104,38 @@ def _checkbox(widget):
                 for child in widget.children:
                     set_widget_state(child, disabled_state)
         
-        set_widget_state(widget, change["new"])
+        set_widget_state(widget, not change["new"])
 
-    checkbox = ipw.Checkbox(value=True, description="", indent=False, disabled=True)
+    checkbox = ipw.Checkbox(value=False, indent=False, layout = ipw.Layout(width='auto', margin='0'), **def_kwargs)
     checkbox.observe(set_default, names="value")
 
     return checkbox
 
-
+"""
+Tab Components
+"""
 def _set_settings(self):
     widgets = self.widgets
 
-    dim = []
-    for i in range(3):
-        dimBox, dimWidget = _set_text(
-            min=0,
-            max=100,
-            description=LABELTEXT_DIM + " x: " if i == 0 else chr(i + 120) + ": ",
-            initial_value=10,
-            dtype=float,
-        )
-        dim.append(dimWidget)
+    dim = _set_vector(
+        label = LABELTEXT_DIM, numDims = 3, initialValue = 10, withCheckbox = True, dtype = float
+    )
     widgets["dim"] = dim
-    dimBox = ipw.HBox(dim)
 
     cutoffBox, cutoffWidget = _set_text(
         min=0, max=100, description=LABELTEXT_CUTOFF, initial_value=1, dtype=float
     )
-    widgets["cutoff"] = cutoffWidget
+    cutoff = ipw.HBox([_checkbox(cutoffWidget), cutoffWidget])
+    widgets["cutoff"] = cutoff
     dtBox, dtWidget = _set_text(
         min=0, max=1, description=LABELTEXT_DT, initial_value=0.01, dtype=float
     )
-    widgets["dt"] = dtWidget
+    dt = ipw.HBox([_checkbox(dtWidget), dtWidget])
+    widgets["dt"] = dt
 
     title = ipw.Label("Settings", style=dict(font_weight="bold"))
 
-    settings_widgets = [title, cutoffWidget, dimBox, dtWidget]
+    settings_widgets = [title, cutoff, dim, dt]
 
     return ipw.VBox(
         settings_widgets,
@@ -160,7 +147,6 @@ def _set_bc(self):
     widgets = self.widgets
     everywhereOptions = ipw.Dropdown(
         options=[(bc.name, bc.value) for bc in tf.BoundaryTypeFlags],
-        disabled=True
     )    
 
     faces = [["x", "left", "right"], ["y", "bottom", "top"], ["z", "front", "back"]]
@@ -176,14 +162,17 @@ def _set_bc(self):
     def dimension(face):
         data = []
         for key in face:
-            velocity = _set_vector()
+            velocity = _set_vector(
+                label = "", numDims = 3, initialValue = 0, withCheckbox = False, dtype = float
+            )
             velocity.layout = ipw.Layout(display="none", margin="0px 0px 10px 0px")
 
             faces = ipw.VBox([_set_dropdown(description=key, options=bcs), velocity])
             dropdown = faces.children[0]
 
             dropdown.observe(lambda change, hbox=faces: is_velocity(change, hbox), names="value")
-            data.append(faces)
+            facesCheckbox = ipw.HBox([_checkbox(faces), faces])
+            data.append(facesCheckbox)
 
         return ipw.VBox(data)
 
@@ -194,34 +183,14 @@ def _set_bc(self):
     dimensions.titles = [chr(i + 120) for i in range(3)]
     dimensions.layout = ipw.Layout(margin="10px 0px")
 
-    def get_bcDict():
-        data = {}
-        for dimension in items: # vbox[x, top, left]
-            for face in dimension.children:
-                dropdown = face.children[0]
-                data[dropdown.description] = dropdown.value
-
-        return data
-        
-    def set_everywhere(change):
-        def set_widget_state(widget, disabled_state):
-            if hasattr(widget, 'disabled'):
-                widget.disabled = disabled_state
-            elif hasattr(widget, 'children'):
-                for child in widget.children:
-                    set_widget_state(child, disabled_state)
-        
-        set_widget_state(dimensions, change["new"])
-
-    isEverywhere = ipw.Checkbox(value=True, description="Apply Everywhere?", indent=False, disabled=True)
+    isEverywhere = ipw.Checkbox(value=True, description="Apply Everywhere?", indent=False)
     everywhereBc = ipw.HBox(
         [               
             isEverywhere,
             everywhereOptions,
         ]
     )
-    widgets["bc"] = everywhereOptions
-    isEverywhere.observe(set_everywhere, names="value")
+    widgets["bc"] = everywhereBc
 
     def get_velocity(hbox):
         dropdown = hbox.children[0]
@@ -236,21 +205,24 @@ def _set_bc(self):
             widgets["bc"] = everywhereOptions
         else:
             data = {}
-            for dimension in items: # vbox[x, top, left]
+            for dimension in items: # ipw.VBox[x, top, left]
                 for face in dimension.children:
-                    dropdown = face.children[0]
-                    if isinstance(dropdown.value, dict):
-                        data[dropdown.description] = {"velocity": get_velocity(face)}
-                    else:
-                        data[dropdown.description] = dropdown.value
+                    checkbox = face.children[0]
+                    widget = face.children[1]
+                    if checkbox.value == True:
+                        dropdown = widget.children[0]
+                        if isinstance(dropdown.value, dict):
+                            data[dropdown.description] = {"velocity": get_velocity(widget)}
+                        else:
+                            data[dropdown.description] = dropdown.value
+            
+            with self.out: print("Boundary condition settings saved!")
             widgets["bc"] = data
-        with self.out: print(widgets["bc"])
     
     save_settings = ipw.Button(
         description="Save Settings",
         disabled=False,
         tooltip="Save settings",
-        clear_output=True,
     )
 
     save_settings.on_click(set_settings)
@@ -263,16 +235,10 @@ def _set_bc(self):
 
 def _set_advanced(self):
     widgets = self.widgets
-    cells = []
-    for i in range(3):
-        cellBox, cellWidget = _set_text(
-            min=0,
-            max=100,
-            description=LABELTEXT_CELLS + " x: " if i == 0 else chr(i + 120) + ": ",
-            initial_value=4,
-            dtype=int,
-        )
-        cells.append(cellWidget)
+
+    cells = _set_vector(
+        label = LABELTEXT_CELLS, numDims = 3, initialValue = 4, withCheckbox = True, dtype = int
+    )
     widgets["cells"] = cells
 
     threadsBox, threadsWidget = _set_text(
@@ -282,12 +248,14 @@ def _set_advanced(self):
         initial_value=20,
         dtype=int,
     )
-    widgets["threads"] = threadsWidget
+    threads = ipw.HBox([_checkbox(threadsWidget), threadsWidget])
+    widgets["threads"] = threads
 
     fluxBox, fluxWidget = _set_text(
         min=0, max=100, description=LABELTEXT_FLUX_STEPS, initial_value=1, dtype=int
     )
-    widgets["flux_steps"] = fluxWidget
+    flux = ipw.HBox([_checkbox(fluxWidget), fluxWidget])
+    widgets["flux_steps"] = flux
 
     integratorWidget = ipw.Dropdown(
         options=[
@@ -298,41 +266,31 @@ def _set_advanced(self):
         description=LABELTEXT_INTEGRATOR,
         disabled=True
     )
-    widgets["integrator"] = integratorWidget
+    integrator = ipw.HBox([_checkbox(integratorWidget), integratorWidget])
+    widgets["integrator"] = integrator
 
-    windowSize = []
-    for i in range(2):
-        windowSizeBox, windowSizeWidget = _set_text(
-            min=0,
-            max=1000,
-            description=(
-                LABELTEXT_WINDOW_SIZE + " x: " if i == 0 else chr(i + 120) + ": "
-            ),
-            initial_value=800 if i == 0 else 600,
-            dtype=int,
-        )
-        windowSize.append(windowSizeWidget)
+    windowSize = _set_vector(
+        label = LABELTEXT_WINDOW_SIZE, numDims = 2, initialValue = 700, withCheckbox = True, dtype = int
+    )
     widgets["window_size"] = windowSize
 
-    throwExcWidget = ipw.HBox(
-        [
-            ipw.Label(LABELTEXT_THROW_EXC),
-            ipw.Checkbox(value=False, description="", indent=False),
-        ]
-    )
-    widgets["throw_exc"] = throwExcWidget
+    throwExcWidget = ipw.Checkbox(value=False, description=LABELTEXT_THROW_EXC, indent=False, disabled=True)
+    throwExc = ipw.HBox([_checkbox(throwExcWidget), throwExcWidget])
+    widgets["throw_exc"] = throwExc
 
     seedBox, seedWidget = _set_text(
         min=0, max=100, description=LABELTEXT_SEED, initial_value=0, dtype=int
     )
-    widgets["seed"] = seedWidget
+    seed = ipw.HBox([_checkbox(seedWidget), seedWidget])
+    widgets["seed"] = seed
 
     loadWidget = ipw.Text(
         placeholder="Load File Name",
         description=LABELTEXT_LOAD_FILE,
         disabled=True
     )
-    widgets["load_file"] = loadWidget
+    load = ipw.HBox([_checkbox(loadWidget), loadWidget])
+    widgets["load_file"] = load
 
     loggerBox, loggerWidget = _set_text(
         min=0,
@@ -341,28 +299,107 @@ def _set_advanced(self):
         initial_value=0,
         dtype=int,
     )
-    widgets["logger_level"] = loggerWidget
+    logger = ipw.HBox([_checkbox(loggerWidget), loggerWidget])
+    widgets["logger_level"] = logger
+
+    clipPlanesList = ipw.VBox(layout=ipw.Layout(
+        border='1px solid lightgray',
+        padding='10px',
+        margin='10px 0px',
+        width='auto'
+    ))
+
+    clipPlanes = _set_clip_planes(self, widgets)
 
     title = ipw.Label("Advanced", style=dict(font_weight="bold"))
     return ipw.VBox(
         [
             title,
-            ipw.HBox(cells),
-            fluxWidget,
-            integratorWidget,
-            loadWidget,
-            loggerWidget,
-            seedWidget,
-            threadsWidget,
-            throwExcWidget,
-            ipw.HBox(windowSize),
+            cells,
+            flux,
+            integrator,
+            load,
+            logger,
+            seed,
+            threads,
+            throwExc,
+            windowSize,
+            clipPlanes
         ],
         layout=ipw.Layout(padding="0px 40px"),
     )    
 
+def _set_clip_planes(self, widgets):
+    clipPlanesList = ipw.VBox()
+
+    def get_dims(vector):
+        data = []
+        for dimension in vector.children:
+            data.append(dimension.value)
+        return data
+
+    def set_planes(_):
+        data = []
+
+        for child in clipPlanesList.children[0].children: #VBox([planes, button]) planes = VBox([VBox[point, normal], VBox[point, normal]])
+            point = get_dims(child.children[0])
+            normal = get_dims(child.children[1])
+            data.append((point, normal))
+
+        with self.out: print("Clip plane settings saved!")
+        widgets["clip_planes"] = data
+
+    saveClipPlanes = ipw.Button(
+        description="Save Settings",
+        disabled=False,
+        tooltip="Save settings",
+    )
+
+    saveClipPlanes.on_click(set_planes)
+
+    def generate_planes(change):
+        data = []
+        planes = []
+        for i in range (change["new"]):
+            point = _set_vector(
+                label = "Point: ", numDims = 3, initialValue = 0, withCheckbox = False, dtype = int, disabled=False
+            )
+            normal = _set_vector(
+                label = "Normal Vector: ", numDims = 3, initialValue = 0, withCheckbox = False, dtype = int, disabled=False
+            )
+            plane = ipw.VBox([point, normal], layout=ipw.Layout(
+                border='1px solid lightgray',
+                padding='10px',
+                margin='5px 0px',
+                width='auto'
+            ))
+            planes.append(plane)
+        data.append(ipw.VBox(planes))
+        data.append(saveClipPlanes)
+        clipPlanesList.children = data
+
+    numClipPlanesBox, numClipPlanesWidget  = _set_text(
+        min=0, max=100, description=LABELTEXT_CLIP_PLANES, initial_value=0, dtype=int
+    )
+
+    # box, numClipPlanesWidget = tfnw.scalar_textb(field_kwargs={"min":0, "max":2}, initial_value=0, dtype=int)
+
+    numClipPlanesWidget.observe(generate_planes, names="value")
+
+    clipPlanes = ipw.VBox([numClipPlanesWidget, clipPlanesList])
+
+    clipPlanesCheckbox = ipw.HBox([_checkbox(clipPlanes), clipPlanes])
+
+    return clipPlanesCheckbox
+
 class _SimInit:
     def __init__(self):
-        self.out = ipw.Output(layout={'border': '1px solid black'})
+        self.out = ipw.Output(layout=ipw.Layout(
+            border='1px solid lightgray',
+            padding='20px',
+            margin='10px 0px',
+            width='auto'
+        ))
         self.widgets = {};
         self.settings = _set_settings(self)
         self.bc = _set_bc(self)
@@ -375,32 +412,7 @@ class _SimInit:
         bc = self.bc
         advanced = self.advanced
 
-        def set_default(change):
-            def set_widget_state(widget, disabled_state):
-                if hasattr(widget, 'disabled'):
-                    widget.disabled = disabled_state
-                elif hasattr(widget, 'children'):
-                    for child in widget.children:
-                        set_widget_state(child, disabled_state)
-            
-            for container in [settings, bc, advanced]:
-                set_widget_state(container, change["new"])
-
-        useDefault = ipw.Checkbox(
-            value=True, description="Use Default Values?", disabled=False, indent=False
-        )
-        useDefault.observe(set_default, names="value")
-        defaultSettings = ipw.VBox(
-            [useDefault, settings],
-        )
-        defaultBc = ipw.VBox(
-            [useDefault, bc],
-        )
-        defaultAdvanced = ipw.VBox(
-            [useDefault, advanced],
-        )
-
-        children = [defaultSettings, defaultBc, defaultAdvanced]
+        children = [settings, bc, advanced]
 
         tabs = ipw.Tab()
         tabs.children = children
@@ -410,27 +422,43 @@ class _SimInit:
     def _get_data(self):
         data = {}
         for key, value in self.widgets.items():
-            if isinstance(value, list):
-                data[key] = [w.value for w in value]
-            elif isinstance(value, dict):
+            if isinstance(value, dict) or isinstance(value, list):
                 data[key] = value
-            elif hasattr(value, 'value'):
-                data[key] = value.value
+                continue
+            checkbox = value.children[0]
+            widget = value.children[1]
+            if checkbox.value == True:
+                if hasattr(widget, 'children'):
+                    data[key] = [w.value for w in widget.children]
+                elif hasattr(widget, 'value'):
+                    data[key] = widget.value
         return data
 
     def _on_init(self, _):
-        useDefault = self.tabs.children[0].children[0].value
-        if useDefault:
-            with self.out: print("Using default values")
-            tf.init()
+        with self.out: 
+            print("Initializing...")
+        data = self._get_data()     
+        tf.init(**data)
 
-        else:
-            data = self._get_data()
-            data = {'dim': [7.0, 13.0, 6.0], 'cutoff': 1.0, 'dt': 0.01, 'bc': 0, 'cells': [4, 4, 4], 'threads': 20, 'flux_steps': 1, 'integrator': 0, 'window_size': [800, 600], 'seed': 0, 'logger_level': 0}
-            with self.out: 
-                print("Using edited values!!")
-                print(data)
-            tf.init(**data)
+        with self.out:
+            if (tf.err_occurred()):
+                for err in tf.err_get_all(): 
+                    clean_msg = str(err).split("Msg: ", 1)[-1].strip()
+                    display(HTML(f'''
+                        <div style="
+                            color: #ff0000; padding: 0px 8px;">
+                            <strong>Error:</strong> {clean_msg}
+                        </div>
+                    '''))
+                print("Please restart the kernel to reinitialize the simulation.")
+            else:
+                print("Successfully Initialized! Loaded Data:")
+                if len(data) == 0: 
+                    print("Loaded with default parameters")
+                    return
+                for param in data:
+                    print("\t" + str(param) + ": " + str(data[param]))
+
 
     def _layout(self):
         initialize = ipw.Button(
@@ -441,17 +469,9 @@ class _SimInit:
         )
 
         initialize.on_click(self._on_init)
-
-        load_settings = ipw.Button(
-            description="Load Settings",
-            disabled=False,
-            tooltip="Load settings from JSON file",
-            clear_output=True,
-        )
-        
         save_settings , output = sns.save_widget()
 
-        buttons = ipw.HBox([initialize, load_settings, save_settings], layout=ipw.Layout(width="100%"))
+        buttons = ipw.HBox([initialize, save_settings], layout=ipw.Layout(width="100%"))
         widget = ipw.VBox([self.tabs, buttons, self.out])
 
         return widget
@@ -465,3 +485,5 @@ def init(show=True):
     if show:
         simInit.show()
     return simInit
+
+# {'dim': [7.0, 13.0, 12.0], 'cutoff': 1.0, 'bc': {'x': {'velocity': [-1.0, 2.0, 1.0]}, 'z': ('periodic', 'reset')}, 'cells': [6, 2, 2]}
