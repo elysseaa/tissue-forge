@@ -2,7 +2,7 @@ from IPython.display import display
 import ipywidgets as ipw
 import tissue_forge as tf
 import numpy as np
-import widgets as tfnw # from . import widgets as tfnw
+from . import widgets as tfnw
 from typing import Any, Dict
 
 LABELTEXT_PTYPE_COLOR = 'Color for type '

@@ -157,6 +157,12 @@ Once called, save and screenshot buttons populate, allowing the user to name the
 
 Simulation Initialization
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. figure:: sim_init.png
+    :width: 100%
+    :alt: Tissue Forge simulation initialization widget demonstration
+    :align: center
+    :figclass: align-center
+
 Tissue Forge supports Jupyter widgets to configure simulation initialization based off the tf.init() function. 
 It provides a collection of sliders, text boxes, and dropdowns to adjust every parameter that the function accepts. 
 
