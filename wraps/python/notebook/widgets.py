@@ -106,6 +106,7 @@ def _default_vector_textb(_dtype: Type, **kwargs):
 
 def _default_vector_text(_dtype: Type, **kwargs):
     def_kwargs = dict(
+        disabled=False,
         continuous_update=True,
         orientation='horizontal',
         readout=True
