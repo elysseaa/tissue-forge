@@ -1,0 +1,82 @@
+
+ParticleModifier.py Update Documentation
+
+These updates significantly expand the original Tissue Forge ParticleType widget utilities by adding new UI components, batch management tools, import/export functionality, and robust error handling — all aimed at improving usability in Jupyter Notebook environments.
+
+ Major Enhancements
+ Centralized Feedback Logging
+Introduced a shared feedback_output = ipw.Output() widget to display success, info, warning, and error messages directly in the notebook.
+
+
+Updated _safe_callback to:
+
+
+Log warnings when a ParticleType cannot be found.
+
+
+Capture and display exceptions instead of failing silently.
+
+
+
+Additional UI Editors
+Added text-based input variants for all key ParticleType properties, providing lightweight alternatives to sliders:
+set_ptype_color_text
+
+
+set_ptype_mass_text
+
+
+set_ptype_number_text
+
+
+set_ptype_radius_text
+
+
+These variants allow direct value entry without sliders, improving precision and compactness.
+
+ Batch Editing
+batch_edit_ptypes(ptypes) batch UI panel for editing multiple types at once.
+
+ Import/Export Configuration
+export_ptypes_config(ptypes, filename) saves particle configuration (name, mass, radius, color) to a JSON file.
+
+
+import_ptypes_config(filename) restores configuration by matching each ParticleType by name.
+
+
+add_export_import_buttons(ptypes) adds buttons to trigger the above actions from the UI.
+
+
+
+ Utility & Reset Functions
+add_reset_button(ptypes) resets all selected types to default values:
+
+
+mass = 1.0
+
+
+radius = 1.0
+
+
+color = (0.5, 0.5, 0.5)
+
+
+particle count = 10
+
+
+add_random_colorizer_button(ptypes) assigns randomized colors to all particles in each type.
+
+
+
+ Visualization & Summary Tools
+show_particle_counts(ptypes) displays the number of particles in each type.
+
+
+show_ptype_summary_table(ptypes) renders an HTML table summarizing particle properties (name, mass, radius, color, count).
+
+
+toggle_visibility_widget(ptypes) adds a dropdown + checkbox UI to control visibility of each ParticleType.
+
+
+
+
